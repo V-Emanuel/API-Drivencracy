@@ -26,17 +26,17 @@ try {
 
 app.post('/poll', async (req, res) => {
     const poll = req.body;
-    {const pollSchema = joi.object({
+    const pollSchema = joi.object({
         title: joi.string().required()
     })
     const validation = pollSchema.validate({title: poll.title}, { abortEarly: true })
     if (validation.error) {
         return res.status(422);
-    }}
+    }
     if (!poll.expireAt) {
         let date = dayjs();
         let newDate = date.add('30', 'day')
-        poll.expireAt = newDate.format('YYYY-MM-DD HH-mm')
+        poll.expireAt = newDate.format('YYYY-MM-DD HH:mm')
     }
     try {
         await db.collection('poll').insertOne({
@@ -58,6 +58,49 @@ app.get('/poll', async (req, res) => {
         res.status(500).send("Erro no servidor")
     }
 })
+
+app.post('/choice', async (req, res) =>{
+    const choice = req.body;
+    const choiceSchema = joi.object({
+        title: joi.string().required(),
+        pollId: joi.string().required()
+    })
+
+    const validation = choiceSchema.validate(choice, {abortEarly: true})
+    if(validation.error){
+        return res.sendStatus(422)
+    }
+
+    const pollExists = await db.collection('poll').findOne({ _id: ObjectId(choice.pollId) })
+    if (!pollExists) return res.sendStatus(422)
+
+    const today = Date.now();
+    const expireDate = new Date(pollExists.expireAt);
+    if(today > expireDate) return res.sendStatus(403)
+
+    const titleExists = await db.collection('choice').findOne({title: choice.title})
+    if (titleExists) return res.sendStatus(409)
+
+    try{
+        await db.collection('choice').insertOne({
+            title: choice.title,
+            pollId: choice.pollId
+        })
+        res.sendStatus(201)
+    }catch(err){
+        res.status(500).send(err.message)
+    }
+})
+
+{/*app.get('/choice', async (req, res) => {
+    const choice = await db.collection("choice").find().toArray()
+    try{
+        if(!choice) return res.status(404).send("No choices")
+        res.send(choice)
+    }catch{
+        res.status(500).send("Erro no servidor")
+    }
+})*/}
 
 app.listen(PORT, () => {
     console.log(`Servidor rodando na porta: ${PORT}`)
