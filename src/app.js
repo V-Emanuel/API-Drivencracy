@@ -92,15 +92,17 @@ app.post('/choice', async (req, res) =>{
     }
 })
 
-{/*app.get('/choice', async (req, res) => {
-    const choice = await db.collection("choice").find().toArray()
+app.get('/poll/:id/choice', async (req, res) => {
+    
+    const {id} = req.params;
+    const choice = await db.collection("choice").find({pollId: ObjectId(id)}).toArray()
     try{
-        if(!choice) return res.status(404).send("No choices")
+        if(!choice) return res.status(404)
         res.send(choice)
     }catch{
         res.status(500).send("Erro no servidor")
     }
-})*/}
+})
 
 app.listen(PORT, () => {
     console.log(`Servidor rodando na porta: ${PORT}`)
