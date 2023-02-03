@@ -29,7 +29,7 @@ app.post('/poll', async (req, res) => {
     const pollSchema = joi.object({
         title: joi.string().required()
     })
-    const validation = pollSchema.validate({title: poll.title}, { abortEarly: true })
+    const validation = pollSchema.validate({ title: poll.title }, { abortEarly: true })
     if (validation.error) {
         return res.status(422);
     }
@@ -51,23 +51,23 @@ app.post('/poll', async (req, res) => {
 
 app.get('/poll', async (req, res) => {
     const polls = await db.collection("poll").find().toArray()
-    try{
-        if(!polls) return res.status(404).send("Não há enquetes")
+    try {
+        if (!polls) return res.status(404).send("Não há enquetes")
         res.send(polls)
-    }catch{
+    } catch {
         res.status(500).send("Erro no servidor")
     }
 })
 
-app.post('/choice', async (req, res) =>{
+app.post('/choice', async (req, res) => {
     const choice = req.body;
     const choiceSchema = joi.object({
         title: joi.string().required(),
         pollId: joi.string().required()
     })
 
-    const validation = choiceSchema.validate(choice, {abortEarly: true})
-    if(validation.error){
+    const validation = choiceSchema.validate(choice, { abortEarly: true })
+    if (validation.error) {
         return res.sendStatus(422)
     }
 
@@ -76,32 +76,52 @@ app.post('/choice', async (req, res) =>{
 
     const today = Date.now();
     const expireDate = new Date(pollExists.expireAt);
-    if(today > expireDate) return res.sendStatus(403)
+    if (today > expireDate) return res.sendStatus(403)
 
-    const titleExists = await db.collection('choice').findOne({title: choice.title})
+    const titleExists = await db.collection('choice').findOne({ title: choice.title })
     if (titleExists) return res.sendStatus(409)
 
-    try{
+    try {
         await db.collection('choice').insertOne({
             title: choice.title,
             pollId: choice.pollId
         })
         res.sendStatus(201)
-    }catch(err){
+    } catch (err) {
         res.status(500).send(err.message)
     }
 })
 
 app.get('/poll/:id/choice', async (req, res) => {
-    
-    const {id} = req.params;
-    const choice = await db.collection("choice").find({pollId: ObjectId(id)}).toArray()
-    try{
-        if(!choice) return res.status(404)
+
+    const { id } = req.params;
+    const choice = await db.collection("choice").find({pollId: id}).toArray()
+    try {
+        if (!choice) return res.status(404)
         res.send(choice)
-    }catch{
+    } catch {
         res.status(500).send("Erro no servidor")
     }
+})
+
+app.post('/choice/:id/vote', async (req, res) => {
+    const { id } = req.params
+    const selectedChoice = await db.collection("choice").findOne({ _Id:ObjectId(id)})
+    if (!selectedChoice) return res.status(404)
+    const selectedPoll = await db.collection("poll").findOne({_Id:ObjectId(selectedChoice.pollId)})
+    const today = Date.now();
+    const expireDate = new Date(selectedPoll.expireAt);
+    if (today > expireDate) return res.sendStatus(403);
+    try {
+            await db.collection('results').insertOne({
+                pollId : selectedChoice,
+                title: selectedChoice.title,
+                date: Date.now().format('YYYY-MM-DD HH:mm')
+        })
+        res.sendStatus(201)
+    } catch(err) {
+        res.status(500).send("Erro no servidor")
+    }     
 })
 
 app.listen(PORT, () => {
