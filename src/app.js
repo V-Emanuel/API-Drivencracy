@@ -95,7 +95,7 @@ app.post('/choice', async (req, res) => {
 app.get('/poll/:id/choice', async (req, res) => {
 
     const { id } = req.params;
-    const choice = await db.collection("choice").find({pollId: id}).toArray()
+    const choice = await db.collection("choice").find({ pollId: id }).toArray()
     try {
         if (!choice) return res.status(404)
         res.send(choice)
@@ -105,23 +105,57 @@ app.get('/poll/:id/choice', async (req, res) => {
 })
 
 app.post('/choice/:id/vote', async (req, res) => {
-    const { id } = req.params
-    const selectedChoice = await db.collection("choice").findOne({ _Id:ObjectId(id)})
+    const { id } = req.params;
+    const selectedChoice = await db.collection("choice").findOne({ _id: ObjectId(id) });
     if (!selectedChoice) return res.status(404)
-    const selectedPoll = await db.collection("poll").findOne({_Id:ObjectId(selectedChoice.pollId)})
+    const selectedPoll = await db.collection("poll").findOne({ _id: ObjectId(selectedChoice.pollId) });
+    if (!selectedPoll) return res.status(404)
     const today = Date.now();
     const expireDate = new Date(selectedPoll.expireAt);
-    if (today > expireDate) return res.sendStatus(403);
+    if (today > Date.now()) return res.sendStatus(403);
     try {
-            await db.collection('results').insertOne({
-                pollId : selectedChoice,
-                title: selectedChoice.title,
-                date: Date.now().format('YYYY-MM-DD HH:mm')
+        await db.collection('votes').insertOne({
+            pollId: selectedChoice.pollId,
+            title: selectedChoice.title,
+            date: dayjs().format('YYYY-MM-DD HH:mm')
         })
         res.sendStatus(201)
-    } catch(err) {
+    } catch (err) {
         res.status(500).send("Erro no servidor")
-    }     
+    }
+})
+
+app.get('/poll/:id/result', async (req, res) => {
+
+    const { id } = req.params;
+    const poll = await db.collection("poll").findOne({ _id: ObjectId(id) })
+    if(!poll) return res.status(404)
+    const allVotes = await db.collection("votes").find({ pollId: id }).toArray()
+
+    let frequency = {};
+    let maxEl = allVotes[0], maxCount = 1;
+    for (let i = 0; i < allVotes.length; i++) {
+        let el = JSON.stringify(allVotes[i]);
+        if (frequency[el] == null) {
+            frequency[el] = 1;
+        } else {
+            frequency[el]++;
+        }
+        if (frequency[el] > maxCount) {
+            maxEl = allVotes[i];
+            maxCount = frequency[el];
+        }
+    }
+
+    const result = [{results: maxEl, maxCount}] ;
+
+    try{
+        //res.send([...poll, ...result])
+        res.send(result)
+    }catch(err){
+        res.status(500).send("Erro no servidor")
+    }
+
 })
 
 app.listen(PORT, () => {
