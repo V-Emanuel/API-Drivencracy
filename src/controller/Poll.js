@@ -27,7 +27,7 @@ export async function postPoll(req, res) {
 export async function getPoll(req, res) {
     const polls = await db.collection("poll").find().toArray()
     try {
-        if (!polls) return res.status(404).send("Não há enquetes")
+        if (!polls) return res.status(404)
         res.send(polls)
     } catch {
         res.status(500).send("Erro no servidor")
@@ -36,8 +36,8 @@ export async function getPoll(req, res) {
 export async function pollChoice(req, res) {
     const { id } = req.params;
     const choice = await db.collection("choice").find({ pollId: id }).toArray()
+    if (!choice) return res.status(404)
     try {
-        if (!choice) return res.status(404)
         res.send(choice)
     } catch {
         res.status(500).send("Erro no servidor")
