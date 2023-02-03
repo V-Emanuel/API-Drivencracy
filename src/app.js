@@ -129,30 +129,39 @@ app.get('/poll/:id/result', async (req, res) => {
 
     const { id } = req.params;
     const poll = await db.collection("poll").findOne({ _id: ObjectId(id) })
-    if(!poll) return res.status(404)
+    if (!poll) return res.sendStatus(404)
     const allVotes = await db.collection("votes").find({ pollId: id }).toArray()
 
-    let frequency = {};
-    let maxEl = allVotes[0], maxCount = 1;
     for (let i = 0; i < allVotes.length; i++) {
-        let el = JSON.stringify(allVotes[i]);
-        if (frequency[el] == null) {
-            frequency[el] = 1;
+        delete allVotes[i]._id
+        delete allVotes[i].pollId
+        delete allVotes[i].date
+    }
+
+    let frequency = {};
+    let maxCount = 0;
+    let mostFrequent;
+
+    for (let i = 0; i < allVotes.length; i++) {
+        let obj = JSON.stringify(allVotes[i]);
+        if (frequency[obj] === undefined) {
+            frequency[obj] = 1;
         } else {
-            frequency[el]++;
+            frequency[obj]++;
         }
-        if (frequency[el] > maxCount) {
-            maxEl = allVotes[i];
-            maxCount = frequency[el];
+
+        if (frequency[obj] > maxCount) {
+            maxCount = frequency[obj];
+            mostFrequent = allVotes[i];
         }
     }
 
-    const result = [{results: maxEl, maxCount}] ;
+    mostFrequent.votes = maxCount
+    const result = mostFrequent
 
-    try{
-        //res.send([...poll, ...result])
-        res.send(result)
-    }catch(err){
+    try {
+        res.send({...poll ,result})
+    } catch (err) {
         res.status(500).send("Erro no servidor")
     }
 
